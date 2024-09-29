@@ -1,101 +1,208 @@
-import Image from "next/image";
+/* eslint-disable @next/next/no-img-element */
+"use client";
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import fakeData from '../data/fake_data.json';
+import { ShoppingCart } from 'lucide-react';
+import Slider from "react-slick"; 
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
+import LoadingIndicator from './custom_components/loading';
+import { Button } from '@/components/ui/button';
+import Product from './models/product';
 
-export default function Home() {
+
+const shuffleArray = (array: Product[]) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
+// Custom Arrow Component
+interface ArrowProps {
+  onClick: () => void;
+  isHidden: boolean;
+}
+
+const NextArrow = ({ onClick, isHidden }: ArrowProps) => {
+  if (isHidden) return null; // Hide the arrow if it shouldn't be shown
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 cursor-pointer">
+      <button onClick={onClick} className="bg-white rounded-full p-2 shadow-md hover:bg-gray-200">
+        &gt; {/* Right Arrow Symbol */}
+      </button>
     </div>
   );
+};
+
+const PrevArrow = ({ onClick, isHidden }: ArrowProps) => {
+  if (isHidden) return null; // Hide the arrow if it shouldn't be shown
+  return (
+    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 cursor-pointer">
+      <button onClick={onClick} className="bg-white rounded-full p-2 shadow-md hover:bg-gray-200">
+        &lt; {/* Left Arrow Symbol */}
+      </button>
+    </div>
+  );
+};
+
+export default function Home() {
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const router = useRouter();
+  const sliderRef = useRef<Slider>(null); // Ref to access the slider
+
+  useEffect(() => {
+    const shuffledProducts = shuffleArray([...fakeData]).slice(0, 8);
+    setFeaturedProducts(shuffledProducts);
+  }, []);
+  const viewMoreTap = () => {
+    if (window.Flutter && typeof window.Flutter.postMessage === "function") {
+      window.Flutter.postMessage(JSON.stringify("viewMore"));
+    } else {
+      router.push('/product/search')
+    }
+  };
+  const navigate = (productId: string) => {
+    if (window.Flutter && typeof window.Flutter.postMessage === "function") {
+      window.Flutter.postMessage(JSON.stringify(productId));
+    } else {
+      navigateToProduct(productId);
+    }
+  };
+  
+  const navigateToProduct = (productId: string) => {
+    router.push(`/product/${productId}`);
+  };
+
+
+  const handleAfterChange = (current: number) => {
+    setCurrentSlide(current); // Update current slide index
+  };
+
+  const settings = {
+    dots: false, // Hide dots
+    infinite: false,
+    speed: 500,
+    slidesToShow: 5,
+    slidesToScroll: 1,
+    nextArrow: <NextArrow isHidden={currentSlide >= featuredProducts.length - 5} onClick={function (): void {
+      throw new Error('Function not implemented.');
+    } } />,
+    prevArrow: <PrevArrow isHidden={currentSlide <= 0} onClick={function (): void {
+      throw new Error('Function not implemented.');
+    } } />,
+    afterChange: handleAfterChange, // Track slide changes
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: 2,
+          slidesToScroll: 1,
+        },
+      },
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+        },
+      },
+    ],
+  };
+  if (featuredProducts.length === 0) {
+    return (
+     <LoadingIndicator/>
+    );
+  }
+  
+
+  return (
+    <main className="flex-1">
+      <section className="w-full overflow-auto">
+        <div className="container">
+          <h2 className="text-2xl font-bold tracking-tighter lg:text-center md:text-center mb-6">
+            Featured Products
+          </h2>
+
+          <div className="hidden lg:block relative touch-pan-y">
+            <Slider {...settings} ref={sliderRef}>
+              {featuredProducts.map((product: Product) => (
+                <div
+                  key={product.id}
+                  className="flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm"
+                  onClick={() => navigate(product.id)}
+                >
+                  <img
+                    alt={product.name}
+                    className="w-full object-cover rounded-t-lg"
+                    height="300"
+                    src={product.image_url}
+                    width="300"
+                  />
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="text-lg font-semibold tracking-tight">{product.name}</h3>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
+                    <span className="text-xl font-bold mt-4">${product.price.toFixed(2)}</span>
+                    <div className="mt-auto flex justify-center sm:justify-end w-full">
+                      <Button
+                        className="mt-2 w-full flex justify-center"
+                        onClick={() => navigate(product.id)}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        <p className='text-sm pl-2'> Add To Cart</p>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Slider>
+          </div>
+
+          <div className="lg:hidden grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 touch-pan-y">
+            {featuredProducts.map((product: Product) => (
+              <div
+                key={product.id}
+                className="flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm"
+                onClick={() => navigate(product.id)}
+              >
+                <img
+                  alt={product.name}
+                  className="w-full object-cover rounded-t-lg"
+                  height="300"
+                  src={product.image_url}
+                  width="300"
+                />
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="text-lg font-semibold tracking-tight">{product.name}</h3>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
+                  <span className="text-xl font-bold mt-4">${product.price.toFixed(2)}</span>
+                  <div className="mt-auto flex justify-center sm:justify-end w-full">
+                    <Button
+                      className="mt-2 w-full flex justify-center"
+                      onClick={() => navigate(product.id)}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      <p className='text-sm pl-2'> Add To Cart</p>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-center">
+            <Button onClick={() => viewMoreTap()} className="w-full max-w-md">
+              View More
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }
+
+
+
